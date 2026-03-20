@@ -1,0 +1,49 @@
+name: "Проверка: Docker + uv практикум"
+
+on:
+  pull_request_target:
+    paths:
+      - "dir_1/**"
+
+jobs:
+  check:
+    name: Автопроверка работы
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Checkout скрипт проверки из main
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.sha }}
+          git checkout ${{ github.event.pull_request.base.sha }} -- scripts/check_docker_uv.py
+
+      - name: Определить директорию студента
+        id: detect
+        run: |
+          CHANGED=$(git -c core.quotePath=false diff --name-only ${{ github.event.pull_request.base.sha }} HEAD -- dir_1/)
+
+          if [ -z "$CHANGED" ]; then
+            echo "Нет изменений в dir_1/"
+            exit 0
+          fi
+
+          STUDENT_DIR=$(echo "$CHANGED" | head -1 | cut -d'/' -f1-2)
+
+          if [ ! -d "$STUDENT_DIR" ]; then
+            echo "Директория $STUDENT_DIR не найдена"
+            exit 1
+          fi
+
+          echo "student_dir=$STUDENT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Найдена работа: $STUDENT_DIR"
+
+      - name: Запуск автопроверки
+        if: steps.detect.outputs.student_dir
+        run: |
+          python3 scripts/check_docker_uv.py "${{ steps.detect.outputs.student_dir }}"
