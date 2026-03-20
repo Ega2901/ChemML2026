@@ -1,0 +1,95 @@
+name: "Проверка: Docker + uv практикум"
+
+on:
+  pull_request:
+    paths:
+      - "dir_1/**"
+
+jobs:
+  check:
+    name: Автопроверка работы
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Определить директорию студента
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} -- dir_1/)
+
+          if [ -z "$CHANGED" ]; then
+            echo "Нет изменений в dir_1/"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          STUDENT_DIR=$(echo "$CHANGED" | head -1 | cut -d'/' -f1-2)
+
+          if [ ! -d "$STUDENT_DIR" ]; then
+            echo "Директория $STUDENT_DIR не найдена"
+            exit 1
+          fi
+
+          echo "student_dir=$STUDENT_DIR" >> "$GITHUB_OUTPUT"
+          echo "student_name=$(basename $STUDENT_DIR)" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Найдена работа: $STUDENT_DIR"
+
+      - name: Запуск автопроверки
+        if: steps.detect.outputs.skip != 'true'
+        id: check
+        continue-on-error: true
+        run: |
+          python3 scripts/check_docker_uv.py "${{ steps.detect.outputs.student_dir }}"
+
+      - name: Комментарий к PR
+        if: always() && steps.detect.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = '/tmp/check_report.md';
+
+            let body = '';
+            if (fs.existsSync(reportPath)) {
+              body = fs.readFileSync(reportPath, 'utf8');
+            } else {
+              body = '## Автопроверка\n\nНе удалось сгенерировать отчёт. Проверьте логи workflow.';
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.includes('Автопроверка')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Результат проверки
+        if: steps.detect.outputs.skip != 'true' && steps.check.outcome == 'failure'
+        run: exit 1
