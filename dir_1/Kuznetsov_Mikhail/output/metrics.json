@@ -1,0 +1,30 @@
+{
+  "LinearRegression": {
+    "R2_test": 0.9309,
+    "MAE_test": 0.4265,
+    "RMSE_test": 0.5128,
+    "R2_cv_mean": 0.9373,
+    "R2_cv_std": 0.0074
+  },
+  "RandomForest": {
+    "R2_test": 0.7934,
+    "MAE_test": 0.6987,
+    "RMSE_test": 0.8867,
+    "R2_cv_mean": 0.8394,
+    "R2_cv_std": 0.0277
+  },
+  "GradientBoosting": {
+    "R2_test": 0.8719,
+    "MAE_test": 0.5576,
+    "RMSE_test": 0.6982,
+    "R2_cv_mean": 0.8952,
+    "R2_cv_std": 0.0156
+  },
+  "SVR": {
+    "R2_test": 0.8572,
+    "MAE_test": 0.5953,
+    "RMSE_test": 0.7371,
+    "R2_cv_mean": 0.8568,
+    "R2_cv_std": 0.0282
+  }
+}
