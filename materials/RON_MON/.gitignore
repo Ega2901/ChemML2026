@@ -1,0 +1,9 @@
+solutions/
+.venv/
+__pycache__/
+catboost_info/
+mlruns/
+outputs/
+*.pyc
+.DS_Store
+configs/
